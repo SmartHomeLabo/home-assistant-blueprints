@@ -115,7 +115,6 @@ actions:
                 - delay: "00:01:00"
               while:
                 - type: is_power
-                  condition: device
                   entity_id: !input smart_plug_power
                   domain: sensor
                   below: !input smart_plug_power_threshold
