@@ -1,0 +1,123 @@
+blueprint:
+  name: 除湿機オートメーション
+  description: 湿度、在宅状況、時間、スマートプラグの電力を使って除湿機を自動化します
+  domain: automation
+  input:
+    humidity_sensor:
+      name: 湿度センサー
+      description: 室内の湿度を測定するセンサー
+      selector:
+        entity:
+          domain: sensor
+    global_humidity_high:
+      name: 除湿開始湿度
+      description: この湿度％以上で除湿機を起動
+      default: 62
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    global_humidity_low:
+      name: 除湿停止湿度
+      description: この湿度％以下で除湿機を停止
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    presence_person:
+      name: 在宅判定用の人物
+      description: 家にいるかを判定するPersonエンティティ
+      selector:
+        entity:
+          domain: person
+    switchbot_button:
+      name: SwitchBot ボタン
+      description: 除湿機の電源を押すSwitchBotスイッチ
+      selector:
+        entity:
+          domain: switch
+    smart_plug_power:
+      name: スマートプラグ電力センサー
+      description: 除湿機の消費電力を測定するセンサー
+      selector:
+        entity:
+          domain: sensor
+    smart_plug_power_threshold:
+      name: 稼働判定電力
+      description: このW以上なら除湿機が稼働中とみなす
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 200
+          unit_of_measurement: W
+    start_time:
+      name: オートメーション開始時刻
+      description: 自動化チェックを開始する時間
+      default: "09:30:00"
+      selector:
+        time: {}
+    end_time:
+      name: オートメーション終了時刻
+      description: 自動化チェックを終了する時間
+      default: "00:00:00"
+      selector:
+        time: {}
+
+trigger:
+  - platform: time_pattern
+    minutes: "/15"
+
+action:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input humidity_sensor
+            above: !input global_humidity_high
+          - condition: zone
+            entity_id: !input presence_person
+            zone: zone.home
+          - condition: time
+            after: !input start_time
+            before: !input end_time
+        sequence:
+          - repeat:
+              sequence:
+                - type: toggle
+                  device_id: switchbot_button
+                  entity_id: !input switchbot_button
+                  domain: switch
+                - delay: "00:01:00"
+              while:
+                - type: is_power
+                  condition: device
+                  device_id: !input smart_plug_power
+                  entity_id: !input smart_plug_power
+                  domain: sensor
+                  below: !input smart_plug_power_threshold
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: numeric_state
+                entity_id: !input humidity_sensor
+                below: !input global_humidity_low
+              - condition: not
+                conditions:
+                  - condition: zone
+                    entity_id: !input presence_person
+                    zone: zone.home
+        sequence:
+          - if:
+              - condition: numeric_state
+                entity_id: !input smart_plug_power
+                above: !input smart_plug_power_threshold
+            then:
+              - type: toggle
+                device_id: switchbot_button
+                entity_id: !input switchbot_button
+                domain: switch
+
+mode: single

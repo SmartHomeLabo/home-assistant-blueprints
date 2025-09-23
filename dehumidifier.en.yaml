@@ -1,0 +1,123 @@
+blueprint:
+  name: Dehumidifier Automation
+  description: Automate a dehumidifier using humidity, presence, time, and smart plug monitoring.
+  domain: automation
+  input:
+    humidity_sensor:
+      name: Humidity Sensor
+      description: Sensor to monitor apartment humidity.
+      selector:
+        entity:
+          domain: sensor
+    global_humidity_high:
+      name: High Humidity Threshold
+      description: Humidity % above which the dehumidifier should turn on.
+      default: 62
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    global_humidity_low:
+      name: Low Humidity Threshold
+      description: Humidity % below which the dehumidifier should turn off.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    presence_person:
+      name: Presence Person
+      description: Person entity to check if home.
+      selector:
+        entity:
+          domain: person
+    switchbot_button:
+      name: SwitchBot Button
+      description: SwitchBot device to toggle the dehumidifier.
+      selector:
+        entity:
+          domain: switch
+    smart_plug_power:
+      name: Smart Plug Power Sensor
+      description: Sensor measuring the current power consumption of the dehumidifier.
+      selector:
+        entity:
+          domain: sensor
+    smart_plug_power_threshold:
+      name: Power Threshold
+      description: Power above which the dehumidifier is considered running.
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 200
+          unit_of_measurement: W
+    start_time:
+      name: Start Time
+      description: Time of day to start automation checks.
+      default: "09:30:00"
+      selector:
+        time: {}
+    end_time:
+      name: End Time
+      description: Time of day to stop automation checks.
+      default: "00:00:00"
+      selector:
+        time: {}
+
+trigger:
+  - platform: time_pattern
+    minutes: "/15"
+
+action:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input humidity_sensor
+            above: !input global_humidity_high
+          - condition: zone
+            entity_id: !input presence_person
+            zone: zone.home
+          - condition: time
+            after: !input start_time
+            before: !input end_time
+        sequence:
+          - repeat:
+              sequence:
+                - type: toggle
+                  device_id: switchbot_button
+                  entity_id: !input switchbot_button
+                  domain: switch
+                - delay: "00:01:00"
+              while:
+                - type: is_power
+                  condition: device
+                  device_id: !input smart_plug_power
+                  entity_id: !input smart_plug_power
+                  domain: sensor
+                  below: !input smart_plug_power_threshold
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: numeric_state
+                entity_id: !input humidity_sensor
+                below: !input global_humidity_low
+              - condition: not
+                conditions:
+                  - condition: zone
+                    entity_id: !input presence_person
+                    zone: zone.home
+        sequence:
+          - if:
+              - condition: numeric_state
+                entity_id: !input smart_plug_power
+                above: !input smart_plug_power_threshold
+            then:
+              - type: toggle
+                device_id: switchbot_button
+                entity_id: !input switchbot_button
+                domain: switch
+
+mode: single
