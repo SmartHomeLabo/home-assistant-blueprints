@@ -3,6 +3,12 @@ blueprint:
   description: Automate a dehumidifier using humidity, presence, time, and smart plug monitoring.
   domain: automation
   input:
+    weather:
+      name: Weather Entity
+      description: Weather entity to check if raining.
+      selector:
+        entity:
+          domain: weather
     humidity_sensor:
       name: Humidity Sensor
       description: Sensor to monitor apartment humidity.
@@ -67,16 +73,33 @@ blueprint:
       selector:
         time: {}
 
-trigger:
+triggers:
   - platform: time_pattern
     minutes: "/15"
 
-action:
+actions:
   - choose:
       - conditions:
           - condition: numeric_state
             entity_id: !input humidity_sensor
             above: !input global_humidity_high
+          - condition: not
+            conditions:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: !input weather
+                    state: lightning-rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: pouring
+                  - condition: state
+                    entity_id: !input weather
+                    state: rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: snowy-rainy
+            alias: "If not raining"
           - condition: zone
             entity_id: !input presence_person
             zone: zone.home
@@ -96,12 +119,28 @@ action:
                   entity_id: !input smart_plug_power
                   domain: sensor
                   below: !input smart_plug_power_threshold
+        alias: "On"
       - conditions:
           - condition: or
             conditions:
               - condition: numeric_state
                 entity_id: !input humidity_sensor
                 below: !input global_humidity_low
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: !input weather
+                    state: lightning-rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: pouring
+                  - condition: state
+                    entity_id: !input weather
+                    state: rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: snowy-rainy
+                alias: "If raining"
               - condition: not
                 conditions:
                   - condition: zone
@@ -116,5 +155,6 @@ action:
               - type: toggle
                 entity_id: !input switchbot_button
                 domain: switch
+        alias: "Off"
 
 mode: single

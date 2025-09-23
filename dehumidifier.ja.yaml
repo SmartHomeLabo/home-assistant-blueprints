@@ -3,6 +3,12 @@ blueprint:
   description: 湿度、在宅状況、時間、スマートプラグの電力を使って除湿機を自動化します
   domain: automation
   input:
+    weather:
+      name: 天気エンティティ
+      description: 雨が降っているかを確認する天気エンティティ
+      selector:
+        entity:
+          domain: weather
     humidity_sensor:
       name: 湿度センサー
       description: 室内の湿度を測定するセンサー
@@ -67,16 +73,33 @@ blueprint:
       selector:
         time: {}
 
-trigger:
+triggers:
   - platform: time_pattern
     minutes: "/15"
 
-action:
+actions:
   - choose:
       - conditions:
           - condition: numeric_state
             entity_id: !input humidity_sensor
             above: !input global_humidity_high
+          - condition: not
+            conditions:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: !input weather
+                    state: lightning-rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: pouring
+                  - condition: state
+                    entity_id: !input weather
+                    state: rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: snowy-rainy
+            alias: "雨が降っていない場合"
           - condition: zone
             entity_id: !input presence_person
             zone: zone.home
@@ -96,12 +119,28 @@ action:
                   entity_id: !input smart_plug_power
                   domain: sensor
                   below: !input smart_plug_power_threshold
+        alias: "オンにする"
       - conditions:
           - condition: or
             conditions:
               - condition: numeric_state
                 entity_id: !input humidity_sensor
                 below: !input global_humidity_low
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: !input weather
+                    state: lightning-rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: pouring
+                  - condition: state
+                    entity_id: !input weather
+                    state: rainy
+                  - condition: state
+                    entity_id: !input weather
+                    state: snowy-rainy
+                alias: "雨が降っている場合"
               - condition: not
                 conditions:
                   - condition: zone
@@ -116,5 +155,6 @@ action:
               - type: toggle
                 entity_id: !input switchbot_button
                 domain: switch
+        alias: "オフにする"
 
 mode: single
