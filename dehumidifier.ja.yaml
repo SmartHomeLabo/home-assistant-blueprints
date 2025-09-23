@@ -114,9 +114,8 @@ actions:
                     entity_id: !input switchbot_button
                 - delay: "00:01:00"
               while:
-                - type: is_power
+                - condition: numeric_state
                   entity_id: !input smart_plug_power
-                  domain: sensor
                   below: !input smart_plug_power_threshold
         alias: "オンにする"
       - conditions:
