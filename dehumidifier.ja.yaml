@@ -109,9 +109,9 @@ actions:
         sequence:
           - repeat:
               sequence:
-                - type: switch.toggle
-                  entity_id: !input switchbot_button
-                  domain: switch
+                - action: switch.toggle
+                  target:
+                    entity_id: !input switchbot_button
                 - delay: "00:01:00"
               while:
                 - type: is_power
@@ -152,9 +152,9 @@ actions:
                 entity_id: !input smart_plug_power
                 above: !input smart_plug_power_threshold
             then:
-              - type: switch.toggle
-                entity_id: !input switchbot_button
-                domain: switch
+              - action: switch.toggle
+                target:
+                  entity_id: !input switchbot_button
         alias: "オフにする"
 
 mode: single
