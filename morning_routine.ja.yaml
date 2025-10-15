@@ -1,0 +1,100 @@
+blueprint:
+  name: 朝のルーティン
+  description: 湿度、在宅（人の存在）、時間、スマートプラグの監視を使用して除湿機を自動化します。
+  domain: automation
+  input:
+    toothbrush:
+      name: 歯磨きの所要時間
+      description: 歯磨きの継続時間を測定するセンサー。
+      selector:
+        entity:
+          domain: sensor
+    person:
+      name: 在宅確認対象の人物
+      description: 人物の在宅状態を監視するセンサー。
+      selector:
+        entity:
+          domain: person
+    temperature_sensor:
+      name: 温度
+      description: 温度を監視するセンサー。
+      selector:
+        entity:
+          domain: sensor
+    maximum_temperature:
+      name: 最大温度
+      description: この温度を超えるとカーテンを開けないようにします。
+      default: 28
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "°C"
+    start_time:
+      name: 開始時刻
+      description: 自動化チェックを開始する時刻。
+      default: "06:45:00"
+      selector:
+        time: {}
+    end_time:
+      name: 終了時刻
+      description: 自動化チェックを終了する時刻。
+      default: "14:00:00"
+      selector:
+        time: {}
+    curtains:
+      name: カーテン
+      description: 開けるカーテン。
+      selector:
+        entity:
+          domain: cover
+
+triggers:
+  - trigger: numeric_state
+    entity_id:
+      - !input toothbrush
+    above: 5
+  - trigger: time
+    at: "09:00:00"
+    id: morning
+
+conditions:
+  - condition: time
+    after: !input start_time
+    before: !input end_time
+  - condition: state
+    entity_id: sun.sun
+    state: above_horizon
+  - condition: or
+    conditions:
+      - condition: and
+        conditions:
+          - condition: zone
+            entity_id: !input person
+            zone: zone.home
+          - condition: not
+            conditions:
+              - condition: trigger
+                id:
+                  - morning
+            alias: "If not triggered by morning"
+      - condition: and
+        conditions:
+          - condition: not
+            conditions:
+              - condition: zone
+                entity_id: !input person
+                zone: zone.home
+            alias: If not home
+          - condition: trigger
+            id:
+              - morning
+  - condition: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input maximum_temperature
+
+actions:
+  - data: {}
+    target:
+      entity_id: !input curtains
+    action: cover.open_cover
