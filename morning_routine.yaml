@@ -91,7 +91,6 @@ conditions:
               - morning
   - condition: numeric_state
     entity_id: !input temperature_sensor
-    domain: sensor
     below: !input maximum_temperature
 
 actions:
